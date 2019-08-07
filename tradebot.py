@@ -7,30 +7,43 @@ import asyncio
 import requests
 import multiprocessing
 
+# Constants used throughout the script (names are self-explanatory)
+WRONG_NUM_ARGS = "ERROR: Incorrect amount of args.  Action did not complete."
+BAD_ARGS = "ERROR: Request error.  Action did not complete."
+SLACK_TOKEN = "SLACK_TOKEN_HERE"
+
+# Set up environment (you do not have to hard code replacements, just use the "set_api_keys" command)
 conn = tradeapi.StreamConn('API_KEY_ID_HERE','API_SECRET_KEY_HERE')
 api = tradeapi.REST('API_KEY_ID_HERE','API_SECRET_KEY_HERE',api_version='v2')
+os.environ['APCA_API_BASE_URL'] = "https://paper-api.alpaca.markets"
+
+# Initialize the Flask object which will be used to handle HTTP requests from Slack
 app = Flask(__name__)
-wrong_num_args = "ERROR: Incorrect amount of args.  Action did not complete."
-bad_args = "ERROR: Request error.  Action did not complete."
-slack_token = "SLACK_TOKEN_HERE"
+
+# Initialize the dictionary of streams that we are listening to; None denotes not listening
 streams = {
   "account_updates": None,
   "trade_updates": None,
 }
 
-
+# Set the API keys for the Slackbot.  Must contain 3 arguments: KEY_ID, SECRET_KEY, and "paper"/"live" depending on whether the API keys are for paper or live
 @app.route("/set_api_keys",methods=["POST"])
 def set_api_keys_handler():
   args = request.form.get("text").split(" ")
-  if(len(args) != 2):
-    return wrong_num_args
+  if(len(args) != 3):
+    return WRONG_NUM_ARGS
   try:
+    # Globally set the new API keys and change the base URL based on paper/live
     global api, conn
     api = tradeapi.REST(args[0],args[1],api_version='v2')
     conn = tradeapi.StreamConn(args[0],args[1])
+    if(args[2] == "paper"):
+      os.environ['APCA_API_BASE_URL'] = "https://paper-api.alpaca.markets"
+    elif(args[2] == "live"):
+      os.environ['APCA_API_BASE_URL'] = "https://api.alpaca.markets"
     text = f'API keys set as follows:\nAPCA_API_KEY_ID={args[0]}\nAPCA_API_SECRET_KEY={args[1]}'
     response = requests.post(url="https://slack.com/api/chat.postMessage",data={
-      "token": slack_token,
+      "token": SLACK_TOKEN,
       "channel": request.form.get("channel_name"),
       "text": text
     })
@@ -40,14 +53,16 @@ def set_api_keys_handler():
 
 # Streaming handlers
 
+# Subscribe to streaming channel(s).  Must contain one or more arguments representing streams you want to connect to.
 @app.route("/subscribe_streaming",methods=["POST"])
 def stream_data_handler():
   args = request.form.get("text").split(" ")
   if(len(args) == 1 and args[0].strip() == ""):
-    return bad_args
+    return BAD_ARGS
   try:
     connected = 0
     for stream in args:
+      # If the specified stream exists in the dictionary and it hasn't been initialized, subscribe and listen to it.
       if(streams[stream] == None):
         streams[stream] = multiprocessing.Process(target=runThread, args=(stream,))
         streams[stream].start()
@@ -59,14 +74,16 @@ def stream_data_handler():
   except Exception as e:
     return f'ERROR: + {str(e)}'
 
+# Unsubsribe to streaming channel(s).  Must contain one or more arguments representing streams you want to disconnect to.
 @app.route("/unsubscribe_streaming",methods=["POST"])
 def unsubscribe_handler():
   args = request.form.get("text").split(" ")
   if(len(args) == 1 and args[0].strip() == ""):
-    return bad_args
+    return BAD_ARGS
   try:
     disconnected = 0
     for stream in args:
+      # If the specified stream exists in the dictionary and it has been initialized, stop listening.
       if(streams[stream] != None):
         streams[stream].terminate()
         streams[stream] = None
@@ -78,6 +95,7 @@ def unsubscribe_handler():
   except Exception as e:
     return f'ERROR: + {str(e)}'
 
+# Lists all active streams
 @app.route("/list_streams",methods=["POST"])
 def list_streams_handler():
   text = "Listing active streams...\n"
@@ -91,31 +109,33 @@ def list_streams_handler():
   except Exception as e:
     return f'ERROR: + {str(e)}'
 
+# Handlers for stream updates
 @conn.on(r'trade_updates')
 async def trade_updates_handler(conn, channel, data):
   text = f'Event: {data.event}, Symbol: {data.order["symbol"]}, Qty: {data.order["qty"]}, Side: {data.order["side"]}, Type: {data.order["type"]}'
   return text
-
 @conn.on(r'account_updates')
 async def account_updates_handler(conn, channel, data):
   text = f'Account updated.  Account balance is currently: {data.cash} {data.currency}'
   return text
 
+# Helper function to listen to a stream
 def runThread(stream):
   conn.run([stream])
 
 # Order/Account handlers
 
+# Execute a market order.  Must contain 4 arguments: symbol, quantity, side, time in force.
 @app.route("/market_order",methods=["POST"])
 def market_order_handler():
   args = request.form.get("text").split(" ")
   if(len(args) != 4):
-    return wrong_num_args
+    return WRONG_NUM_ARGS
   try:
     order = api.submit_order(args[0],args[1],args[2],"market",args[3])
     text = f'Market order of | {args[1]} {args[0]} {args[2]} | completed.  Order id = {order.id}.'
     response = requests.post(url="https://slack.com/api/chat.postMessage",data={
-      "token": slack_token,
+      "token": SLACK_TOKEN,
       "channel": request.form.get("channel_name"),
       "text": text
     })
@@ -123,16 +143,17 @@ def market_order_handler():
   except Exception as e:
     return f'ERROR: + {str(e)}'
 
+# Execute a limit order.  Must contain 5 arguments: symbol, quantity, side, time in force, limit price.
 @app.route("/limit_order",methods=["POST"])
 def limit_order_handler():
   args = request.form.get("text").split(" ")
   if(len(args) != 5):
-    return wrong_num_args
+    return WRONG_NUM_ARGS
   try:
     order = api.submit_order(args[0],args[1],args[2],"limit",args[3],limit_price=args[4])
     text = f'Limit order of | {args[1]} {args[0]} {args[2]} | submitted.  Order id = {order.id}.'
     response = requests.post(url="https://slack.com/api/chat.postMessage",data={
-      "token": slack_token,
+      "token": SLACK_TOKEN,
       "channel": request.form.get("channel_name"),
       "text": text
     })
@@ -140,11 +161,12 @@ def limit_order_handler():
   except Exception as e:
     return f'ERROR: + {str(e)}'
 
+# Lists all current positions.  Takes no arguments.
 @app.route("/list_positions",methods=["POST"])
 def positions_handler():
   args = request.form.get("text").split(" ")
   if(len(args) != 1 and args[0].strip() != ""):
-    return wrong_num_args
+    return WRONG_NUM_ARGS
   try:
     positions = api.list_positions()
     if(len(positions) == 0):
@@ -154,11 +176,12 @@ def positions_handler():
   except Exception as e:
     return f'ERROR: + {str(e)}'
 
+# Lists all open orders.  Takes no arguments.
 @app.route("/list_open_orders",methods=["POST"])
 def open_orders_handler():
   args = request.form.get("text").split(" ")
   if(len(args) != 1 and args[0].strip() != ""):
-    return wrong_num_args
+    return WRONG_NUM_ARGS
   try:
     orders = api.list_orders(status="open")
     if(len(orders) == 0):
@@ -168,11 +191,12 @@ def open_orders_handler():
   except Exception as e:
     return f'ERROR: + {str(e)}'
 
+# Clear all positions.  Takes no arguments.
 @app.route("/clear_positions",methods=["POST"])
 def clear_positions_handler():
   args = request.form.get("text").split(" ")
   if(len(args) != 1 and args[0].strip() != ""):
-    return wrong_num_args
+    return WRONG_NUM_ARGS
   try:
     positions = api.list_positions()
     positions = map(lambda x: [x.symbol,x.qty,x.side],positions)
@@ -180,7 +204,7 @@ def clear_positions_handler():
       api.submit_order(position[0],abs(int(position[1])),"sell" if position[2] == "long" else "buy","market","day")
     text = "Positions cleared."
     response = requests.post(url="https://slack.com/api/chat.postMessage",data={
-      "token": slack_token,
+      "token": SLACK_TOKEN,
       "channel": request.form.get("channel_name"),
       "text": text
     })
@@ -188,11 +212,12 @@ def clear_positions_handler():
   except Exception as e:
     return f'ERROR: + {str(e)}'
 
+# Clears all open orders.  Takes no arguments.
 @app.route("/clear_orders",methods=["POST"])
 def clear_orders_handler():
   args = request.form.get("text").split(" ")
   if(len(args) != 1 and args[0].strip() != ""):
-    return wrong_num_args
+    return WRONG_NUM_ARGS
   try:
     orders = api.list_orders()
     orders = map(lambda x: x.id,orders)
@@ -200,7 +225,7 @@ def clear_orders_handler():
       api.cancel_order(order)
     text = "Orders cleared."
     response = requests.post(url="https://slack.com/api/chat.postMessage",data={
-      "token": slack_token,
+      "token": SLACK_TOKEN,
       "channel": request.form.get("channel_name"),
       "text": text
     })
@@ -208,11 +233,12 @@ def clear_orders_handler():
   except Exception as e:
     return f'ERROR: + {str(e)}'
 
+# Gets basic account info.  Takes no arguments.
 @app.route("/account_info",methods=["POST"])
 def account_info_handler():
   args = request.form.get("text").split(" ")
   if(len(args) != 1 and args[0].strip() != ""):
-    return wrong_num_args
+    return WRONG_NUM_ARGS
   try:
     account = api.get_account()
     text = f'Account info...\nBuying power = {account.buying_power}\nEquity = {account.equity}\nPortfolio value = {account.portfolio_value}\nShorting enabled? = {account.shorting_enabled}'
@@ -220,11 +246,12 @@ def account_info_handler():
   except Exception as e:
     return f"ERROR: {str(e)}"
 
+# Gets price specified stock symbols.  Must include one or more arguments representing stock symbols.
 @app.route("/get_price",methods=["POST"])
 def get_price_handler():
   args = request.form.get("text").split(" ")
   if(len(args) == 1 and args[0].strip() == ""):
-    return wrong_num_args
+    return WRONG_NUM_ARGS
   try:
     text = "Listing prices..."
     for symbol in args:
@@ -233,8 +260,6 @@ def get_price_handler():
     return text
   except Exception as e:
     return f'ERROR: {str(e)}'
-
-# slack_events_adapter = SlackEventAdapter(os.environ.get("SLACK_SIGNING_SECRET"), "/slack/events", app)
 
 if __name__ == "__main__":
   app.run(port=3000)
