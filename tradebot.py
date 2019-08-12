@@ -10,12 +10,11 @@ import multiprocessing
 # Constants used throughout the script (names are self-explanatory)
 WRONG_NUM_ARGS = "ERROR: Incorrect amount of args.  Action did not complete."
 BAD_ARGS = "ERROR: Request error.  Action did not complete."
-SLACK_TOKEN = "SLACK_TOKEN_HERE"
+SLACK_TOKEN = "xoxp-691178974163-702102603140-702592489157-c80c56b8e12596158fd69293749ef4eb"
 
 # Set up environment (you do not have to hard code replacements, just use the "set_api_keys" command)
 conn = tradeapi.StreamConn('API_KEY_ID_HERE','API_SECRET_KEY_HERE')
-api = tradeapi.REST('API_KEY_ID_HERE','API_SECRET_KEY_HERE',api_version='v2')
-os.environ['APCA_API_BASE_URL'] = "https://paper-api.alpaca.markets"
+api = tradeapi.REST('API_KEY_ID_HERE','API_SECRET_KEY_HERE',base_url="https://paper-api.alpaca.markets",api_version='v2')
 
 # Initialize the Flask object which will be used to handle HTTP requests from Slack
 app = Flask(__name__)
@@ -35,12 +34,12 @@ def set_api_keys_handler():
   try:
     # Globally set the new API keys and change the base URL based on paper/live
     global api, conn
-    api = tradeapi.REST(args[0],args[1],api_version='v2')
-    conn = tradeapi.StreamConn(args[0],args[1])
     if(args[2] == "paper"):
-      os.environ['APCA_API_BASE_URL'] = "https://paper-api.alpaca.markets"
+      url = "https://paper-api.alpaca.markets"
     elif(args[2] == "live"):
-      os.environ['APCA_API_BASE_URL'] = "https://api.alpaca.markets"
+      url = "https://api.alpaca.markets"
+    api = tradeapi.REST(args[0],args[1],base_url=url,api_version='v2')
+    conn = tradeapi.StreamConn(args[0],args[1])
     text = f'API keys set as follows:\nAPCA_API_KEY_ID={args[0]}\nAPCA_API_SECRET_KEY={args[1]}'
     response = requests.post(url="https://slack.com/api/chat.postMessage",data={
       "token": SLACK_TOKEN,
@@ -246,9 +245,9 @@ def account_info_handler():
   except Exception as e:
     return f"ERROR: {str(e)}"
 
-# Gets price specified stock symbols.  Must include one or more arguments representing stock symbols.
-@app.route("/get_price",methods=["POST"])
-def get_price_handler():
+# Gets Polygon price specified stock symbols.  Must include one or more arguments representing stock symbols. Must have live account to access
+@app.route("/get_price_polygon",methods=["POST"])
+def get_price_polygon_handler():
   args = request.form.get("text").split(" ")
   if(len(args) == 1 and args[0].strip() == ""):
     return WRONG_NUM_ARGS
@@ -261,5 +260,21 @@ def get_price_handler():
   except Exception as e:
     return f'ERROR: {str(e)}'
 
+# Gets price specified stock symbols.  Must include one or more arguments representing stock symbols.
+@app.route("/get_price",methods=["POST"])
+def get_price_handler():
+  args = request.form.get("text").split(" ")
+  if(len(args) == 1 and args[0].strip() == ""):
+    return WRONG_NUM_ARGS
+  try:
+    text = "Listing prices..."
+    bars = api.get_barset(args,"minute",1)
+    for bar in bars:
+      text += f'\n{bar}: Price = {bars[bar][0].c}'
+    return text
+  except Exception as e:
+    return f'ERROR: {str(e)}'
+
+# Run on local port 3000
 if __name__ == "__main__":
   app.run(port=3000)
