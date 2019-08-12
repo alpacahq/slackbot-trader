@@ -10,7 +10,7 @@ import multiprocessing
 # Constants used throughout the script (names are self-explanatory)
 WRONG_NUM_ARGS = "ERROR: Incorrect amount of args.  Action did not complete."
 BAD_ARGS = "ERROR: Request error.  Action did not complete."
-SLACK_TOKEN = "xoxp-691178974163-702102603140-702592489157-c80c56b8e12596158fd69293749ef4eb"
+SLACK_TOKEN = "SLACK_TOKEN_HERE"
 
 # Set up environment (you do not have to hard code replacements, just use the "set_api_keys" command)
 conn = tradeapi.StreamConn('API_KEY_ID_HERE','API_SECRET_KEY_HERE')
