@@ -135,8 +135,8 @@ def market_order_handler():
   if(len(args) != 4):
     return WRONG_NUM_ARGS
   try:
-    order = api.submit_order(args[0],args[1],args[2],"market",args[3])
-    text = f'Market order of | {args[1]} {args[0]} {args[2]} | completed.  Order id = {order.id}.'
+    order = api.submit_order(args[2],args[1],args[0],"market",args[3])
+    text = f'Market order of | {args[0]} {args[1]} {args[2]} | completed.  Order id = {order.id}.'
     response = requests.post(url="https://slack.com/api/chat.postMessage",data={
       "token": SLACK_TOKEN,
       "channel": request.form.get("channel_name"),
@@ -153,8 +153,8 @@ def limit_order_handler():
   if(len(args) != 5):
     return WRONG_NUM_ARGS
   try:
-    order = api.submit_order(args[0],args[1],args[2],"limit",args[3],limit_price=args[4])
-    text = f'Limit order of | {args[1]} {args[0]} {args[2]} | submitted.  Order id = {order.id}.'
+    order = api.submit_order(args[2],args[1],args[0],"limit",args[3],limit_price=args[4])
+    text = f'Limit order of | {args[0]} {args[1]} {args[2]} | submitted.  Order id = {order.id}.'
     response = requests.post(url="https://slack.com/api/chat.postMessage",data={
       "token": SLACK_TOKEN,
       "channel": request.form.get("channel_name"),
@@ -170,8 +170,8 @@ def stop_order_handler():
   if(len(args) != 5):
     return WRONG_NUM_ARGS
   try:
-    order = api.submit_order(args[0],args[1],args[2],"stop",args[3],stop_price=args[4])
-    text = f'Stop order of | {args[1]} {args[0]} {args[2]} | submitted.  Order id = {order.id}.'
+    order = api.submit_order(args[2],args[1],args[0],"stop",args[3],stop_price=args[4])
+    text = f'Stop order of | {args[0]} {args[1]} {args[2]} | submitted.  Order id = {order.id}.'
     response = requests.post(url="https://slack.com/api/chat.postMessage",data={
       "token": SLACK_TOKEN,
       "channel": request.form.get("channel_name"),
@@ -305,9 +305,9 @@ def help_tradebot_handler():
     return WRONG_NUM_ARGS
   try:
     text = "Commands, arguments, and descriptions: \n\
-      /limit_order: Limit order, <symbol> <qty> <side> <time_in_force> <limit_price> \n\
-      /market_order: Market order, <symbol> <qty> <side> <time_in_force> \n\
-      /stop_order: Stop order, <symbol> <qty> <side> <time_in_force> \n\
+      /limit_order: Limit order, <side> <qty> <symbol> <time_in_force> <limit_price> \n\
+      /market_order: Market order, <side> <qty> <symbol> <time_in_force> \n\
+      /stop_order: Stop order, <side> <qty> <symbol> <time_in_force> <stop_price>\n\
       /list_positions: List positions, no args \n\
       /list_open_orders: List open orders, no args \n\
       /clear_positions: Clear all positions, no args \n\
