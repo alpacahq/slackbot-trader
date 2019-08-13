@@ -279,6 +279,32 @@ def get_price_handler():
   except Exception as e:
     return f'ERROR: {str(e)}'
 
+# Provides a verbose description of each tradebot command
+@app.route("/help_tradebot",methods=["POST"])
+def help_tradebot_handler():
+  args = request.form.get("text").split(" ")
+  if(len(args) == 1 and args[0].strip() == ""):
+    return WRONG_NUM_ARGS
+  try:
+    text = "Commands, arguments, and descriptions: \n\
+      /limit_order: Limit order, <symbol> <qty> <side> <time_in_force> <limit_price>\n\
+      /market_order: Market order, <symbol> <qty> <side> <time_in_force>\n\
+      /list_positions: List positions, no args \n\
+      /list_open_orders: List open orders, no args \n\
+      /clear_positions: Clear all positions, no args \n\
+      /clear_orders: Clears all orders, no args \n\
+      /set_api_keys: Sets the API keys, must specify 'paper' or 'live' as 3rd argument, <KEY_ID> <SECRET_KEY> <'paper'/'live'> \n\
+      /subscribe_streaming: Subscribe to streaming channels, <[channels]> \n\
+      /unsubscribe_streaming: Unsubscribe from streaming channels, <[channels]> \n\
+      /list_streams: Lists all active streams, no args \n\
+      /account_info: Gets basic account info, no args \n\
+      /get_price: Gets the price(s) of the given symbol(s), <[symbols]> \n\
+      /get_price_polygon: Polygon pricing data of given symbol(s), *live accounts only*, <[symbols]> \n\
+      /help: Provides a descripion of each command, no args"
+    return text
+  except Exception as e:
+    return f'ERROR: {str(e)}'
+
 # Run on local port 3000
 if __name__ == "__main__":
   app.run(port=3000)
