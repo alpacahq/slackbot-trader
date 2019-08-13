@@ -164,6 +164,24 @@ def limit_order_handler():
   except Exception as e:
     return f'ERROR: + {str(e)}'
 
+@app.route("/stop_order",methods=["POST"])
+def stop_order_handler():
+  args = request.form.get("text".split(" "))
+  if(len(args) != 5):
+    return WRONG_NUM_ARGS
+  try:
+    order = api.submit_order(args[0],args[1],args[2],"stop",args[3],stop_price=args[4])
+    text = f'Stop order of | {args[1]} {args[0]} {args[2]} | submitted.  Order id = {order.id}.'
+    response = requests.post(url="https://slack.com/api/chat.postMessage",data={
+      "token": SLACK_TOKEN,
+      "channel": request.form.get("channel_name"),
+      "text": text
+    })
+    return ""
+  except Exception as e:
+    return f'ERROR: + {str(e)}'
+
+
 # Lists all current positions.  Takes no arguments.
 @app.route("/list_positions",methods=["POST"])
 def positions_handler():
@@ -287,8 +305,9 @@ def help_tradebot_handler():
     return WRONG_NUM_ARGS
   try:
     text = "Commands, arguments, and descriptions: \n\
-      /limit_order: Limit order, <symbol> <qty> <side> <time_in_force> <limit_price>\n\
-      /market_order: Market order, <symbol> <qty> <side> <time_in_force>\n\
+      /limit_order: Limit order, <symbol> <qty> <side> <time_in_force> <limit_price> \n\
+      /market_order: Market order, <symbol> <qty> <side> <time_in_force> \n\
+      /stop_order: Stop order, <symbol> <qty> <side> <time_in_force> \n\
       /list_positions: List positions, no args \n\
       /list_open_orders: List open orders, no args \n\
       /clear_positions: Clear all positions, no args \n\
@@ -300,7 +319,7 @@ def help_tradebot_handler():
       /account_info: Gets basic account info, no args \n\
       /get_price: Gets the price(s) of the given symbol(s), <[symbols]> \n\
       /get_price_polygon: Polygon pricing data of given symbol(s), *live accounts only*, <[symbols]> \n\
-      /help: Provides a descripion of each command, no args"
+      /help_tradebot: Provides a descripion of each command, no args"
     return text
   except Exception as e:
     return f'ERROR: {str(e)}'
