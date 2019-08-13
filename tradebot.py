@@ -7,6 +7,10 @@ import asyncio
 import requests
 import multiprocessing
 
+### Note: Slack commands automatically provide a whitespace for ensuing arguments.  Checks
+#   that look like: len(args) == 1 and args[0].strip() == "" are checking if the user input 0 args,
+#   which would be received as 1 string argument containing " ".
+
 # Constants used throughout the script (names are self-explanatory)
 WRONG_NUM_ARGS = "ERROR: Incorrect amount of args.  Action did not complete."
 BAD_ARGS = "ERROR: Request error.  Action did not complete."
