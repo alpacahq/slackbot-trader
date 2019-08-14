@@ -1,4 +1,3 @@
-from slackeventsapi import SlackEventAdapter
 from flask import Flask, request, make_response
 import alpaca_trade_api as tradeapi
 import requests
@@ -41,6 +40,7 @@ def set_api_keys_handler():
     elif(args[2] == "live"):
       url = "https://api.alpaca.markets"
     api = tradeapi.REST(args[0],args[1],base_url=url,api_version='v2')
+    conn = tradeapi.StreamConn(args[0],args[1],base_url=url)
     text = f'API keys set as follows:\nAPCA_API_KEY_ID={args[0]}\nAPCA_API_SECRET_KEY={args[1]}'
     response = requests.post(url="https://slack.com/api/chat.postMessage",data={
       "token": SLACK_TOKEN,
