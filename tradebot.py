@@ -1,4 +1,4 @@
-from flask import Flask, request, make_response
+from flask import Flask, request
 import alpaca_trade_api as tradeapi
 import requests
 import multiprocessing
@@ -8,14 +8,17 @@ import asyncio
 #   that look like: len(args) == 1 and args[0].strip() == "" are checking if the user input 0 args,
 #   which would be received as 1 string argument containing " ".
 
-# Constants used throughout the script (names are self-explanatory)
+# Constants used throughout the script (names are self-explanatory).  Must hard code SLACK TOKEN, KEY_ID, SECRET_KEY, channel
 WRONG_NUM_ARGS = "ERROR: Incorrect amount of args.  Action did not complete."
 BAD_ARGS = "ERROR: Request error.  Action did not complete."
 SLACK_TOKEN = "SLACK_TOKEN_HERE"
+KEY_ID = "APCA_API_KEY_ID_HERE"
+SECRET_KEY = "APCA_API_SECRET_KEY_HERE"
+channel = "SLACK_CHANNEL_TO_POST_TO_HERE"
 
-# Set up environment (you do not have to hard code replacements, just use the "set_api_keys" command)
-conn = tradeapi.StreamConn('API_KEY_ID_HERE','API_SECRET_KEY_HERE',base_url="https://paper-api.alpaca.markets")
-api = tradeapi.REST('API_KEY_ID_HERE','API_SECRET_KEY_HERE',base_url="https://paper-api.alpaca.markets",api_version='v2')
+# Set up environment 
+conn = tradeapi.StreamConn(KEY_ID,SECRET_KEY,base_url="https://paper-api.alpaca.markets")
+api = tradeapi.REST(KEY_ID,SECRET_KEY,base_url="https://paper-api.alpaca.markets",api_version='v2')
 
 # Initialize the Flask object which will be used to handle HTTP requests from Slack
 app = Flask(__name__)
@@ -25,32 +28,6 @@ streams = {
   "account_updates": None,
   "trade_updates": None,
 }
-
-# Set the API keys for the Slackbot.  Must contain 3 arguments: KEY_ID, SECRET_KEY, and "paper"/"live" depending on whether the API keys are for paper or live
-@app.route("/set_api_keys",methods=["POST"])
-def set_api_keys_handler():
-  args = request.form.get("text").split(" ")
-  if(len(args) != 3):
-    return WRONG_NUM_ARGS
-  try:
-    # Globally set the new API keys and change the base URL based on paper/live
-    global api, conn
-    if(args[2] == "paper"):
-      url = "https://paper-api.alpaca.markets"
-    elif(args[2] == "live"):
-      url = "https://api.alpaca.markets"
-    api = tradeapi.REST(args[0],args[1],base_url=url,api_version='v2')
-    conn = tradeapi.StreamConn(args[0],args[1],base_url=url)
-    text = f'API keys set as follows:\nAPCA_API_KEY_ID={args[0]}\nAPCA_API_SECRET_KEY={args[1]}'
-    response = requests.post(url="https://slack.com/api/chat.postMessage",data={
-      "token": SLACK_TOKEN,
-      "channel": request.form.get("channel_name"),
-      "text": text
-    })
-    return ""
-  except Exception as e:
-    return f'ERROR: {str(e)}'
-
 # Streaming handlers
 
 # Subscribe to streaming channel(s).  Must contain one or more arguments representing streams you want to connect to.
@@ -107,20 +84,29 @@ def unsubscribe_handler():
   except Exception as e:
     return f'ERROR: {str(e)}'
 
-# Handlers for stream updates
 @conn.on(r'trade_updates')
-async def trade_updates_handler(conn, channel, data):
+async def trade_updates_handler(conn, chan, data):
   if(data.event == "new"):
     return ""
   elif(data.event == "fill" or data.event == "partial_fill"):
-    text = f'Event: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} | filled {data.position_qty} shares at {data.price}'
+    text = f'Event: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} | {data.event} at {data.price}'
   else:
     text = f'Event: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} {data.event}'
-  return text
+  response = requests.post(url="https://slack.com/api/chat.postMessage",data={
+    "token": SLACK_TOKEN,
+    "channel": channel,
+    "text": text
+  }) 
+  return ""
 @conn.on(r'account_updates')
-async def account_updates_handler(conn, channel, data):
+async def account_updates_handler(conn, chan, data):
   text = f'Account updated.  Account balance is currently: {data.cash} {data.currency}'
-  return text
+  response = requests.post(url="https://slack.com/api/chat.postMessage",data={
+    "token": SLACK_TOKEN,
+    "channel": channel,
+    "text": text
+  })
+  return ""
 
 # Helper function to listen to a stream
 def runThread(stream):
@@ -218,8 +204,7 @@ def list_handler():
       orders = api.list_orders(status="open")
       if(len(orders) == 0):
         return "No orders."
-      orders = map(lambda x: (f'Symbol: {x.symbol}, Qty: {x.qty}, Side: {x.side}, Type: {x.type}, Amount filled: {x.filled_qty}\
-        {(f", Stop Price = {x.stop_price}","")[x.stop_price == None]}{(f", Limit Price = {x.limit_price}","")[x.limit_price == None]}'),orders)
+      orders = map(lambda x: (f'Symbol: {x.symbol}, Qty: {x.qty}, Side: {x.side}, Type: {x.type}, Amount filled: {x.filled_qty}{(f", Stop Price = {x.stop_price}","")[x.stop_price == None]}{(f", Limit Price = {x.limit_price}","")[x.limit_price == None]}'),orders)
       return "Listing orders...\n" + '\n'.join(orders)
     except Exception as e:
       return f'ERROR: {str(e)}'
