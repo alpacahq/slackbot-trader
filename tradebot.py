@@ -15,7 +15,7 @@ BAD_ARGS = "ERROR: Request error.  Action did not complete."
 SLACK_TOKEN = "SLACK_TOKEN_HERE"
 KEY_ID = "KEY_ID_HERE"
 SECRET_KEY = "SECRET_KEY_HERE"
-CHANNEL = "CHANNEL_TO_POST_TO_HERE"
+CHANNEL = "SLACK_CHANNEL_TO_POST_TO_HERE"
 
 # Set up environment 
 conn = tradeapi.StreamConn(KEY_ID,SECRET_KEY,base_url="https://paper-api.alpaca.markets")
@@ -85,6 +85,7 @@ def unsubscribe_handler():
   except Exception as e:
     return f'ERROR: {str(e)}'
 
+# Stream listeners
 @conn.on(r'trade_updates')
 async def trade_updates_handler(conn, chan, data):
   if(data.event == "new"):
@@ -285,16 +286,17 @@ def get_price_polygon_handler():
   args = request.form.get("text").split(" ")
   if(len(args) == 1 and args[0].strip() == ""):
     return WRONG_NUM_ARGS
-  async def sub_get_price_polygon(api,request):
+  async def sub_get_price_polygon(api,request,args):
     try:
       text = "Listing prices..."
+      args = map(lambda x: x.upper(),args)
       for symbol in args:
         quote = api.polygon.last_quote(symbol)
         text += f'\n{symbol}: Bid price = {quote.bidprice}, Ask price = {quote.askprice}'
       response = requests.post(url=request.form.get("response_url"), data=json.dumps({"text": text}), headers={"Content-type": "application/json"})
     except Exception as e:
       response = requests.post(url=request.form.get("response_url"), data=json.dumps({"text": f"ERROR: {str(e)}"}), headers={"Content-type": "application/json"})
-  asyncio.run(sub_get_price_polygon(api,request))
+  asyncio.run(sub_get_price_polygon(api,request,args))
   return ""
 
 # Gets price specified stock symbols.  Must include one or more arguments representing stock symbols.
@@ -303,16 +305,17 @@ def get_price_handler():
   args = request.form.get("text").split(" ")
   if(len(args) == 1 and args[0].strip() == ""):
     return WRONG_NUM_ARGS
-  async def sub_get_price(api,request):
+  async def sub_get_price(api,request,args):
     try:
       text = "Listing prices..."
+      args = map(lambda x: x.upper(),args)
       bars = api.get_barset(args,"minute",1)
       for bar in bars:
         text += f'\n{bar}: Price = {bars[bar][0].c}, Time = {bars[bar][0].t}'
       response = requests.post(url=request.form.get("response_url"), data=json.dumps({"text": text}), headers={"Content-type": "application/json"})
     except Exception as e:
       response = requests.post(url=request.form.get("response_url"), data=json.dumps({"text": f"ERROR: {str(e)}"}), headers={"Content-type": "application/json"})
-  asyncio.run(sub_get_price(api,request))
+  asyncio.run(sub_get_price(api,request,args))
   return ""
 
 # Provides a verbose description of each tradebot command
