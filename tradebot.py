@@ -19,7 +19,7 @@ CHANNEL = "SLACK_CHANNEL_TO_POST_TO_HERE"
 
 # Set up environment 
 conn = tradeapi.StreamConn(KEY_ID,SECRET_KEY,base_url="https://paper-api.alpaca.markets")
-api = tradeapi.REST(KEY_ID,SECRET_KEY,base_url="https://paper-api.alpaca.markets",api_version='v2')
+api = tradeapi.REST(KEY_ID,SECRET_KEY,base_url="https://paper-api.alpaca.markets")
 
 # Initialize the Flask object which will be used to handle HTTP requests from Slack
 app = Flask(__name__)
@@ -91,9 +91,9 @@ async def trade_updates_handler(conn, chan, data):
   if(data.event == "new"):
     return ""
   elif(data.event == "fill" or data.event == "partial_fill"):
-    text = f'Event: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} | {data.event} at {data.price}'
+    text = f'Event: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} {data.order["time_in_force"]} | {data.event} at {data.price}'
   else:
-    text = f'Event: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} {data.event}'
+    text = f'Event: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} {data.order["time_in_force"]} {data.event}'
   response = requests.post(url="https://slack.com/api/chat.postMessage",data={
     "token": SLACK_TOKEN,
     "channel": CHANNEL,
@@ -130,7 +130,7 @@ def order_handler():
         args[3] = args[3].upper()
         order = api.submit_order(args[3],args[2],args[1],args[0],args[4])
         price = api.get_barset(args[3],'minute',1)[args[3]][0].c
-        text = f'Market order of | {args[1]} {args[2]} {args[3]} | submitted, current equity price at {price}.  Order id = {order.id}.'
+        text = f'Market order of | {args[1]} {args[2]} {args[3]} {args[4]} |, current equity price at {price}.  Order id = {order.id}.'
         response = requests.post(url="https://slack.com/api/chat.postMessage",data={
           "token": SLACK_TOKEN,
           "channel": request.form.get("channel_name"),
@@ -144,7 +144,7 @@ def order_handler():
       try:
         args[3] = args[3].upper()
         order = api.submit_order(args[3],args[2],args[1],args[0].lower(),args[4],limit_price=args[5])
-        text = f'Limit order of | {args[1]} {args[2]} {args[3]} at limit price {args[5]} | submitted.  Order id = {order.id}.'
+        text = f'Limit order of | {args[1]} {args[2]} {args[3]} {args[4]} at limit price {args[5]} | submitted.  Order id = {order.id}.'
         response = requests.post(url="https://slack.com/api/chat.postMessage",data={
           "token": SLACK_TOKEN,
           "channel": request.form.get("channel_name"),
@@ -158,7 +158,7 @@ def order_handler():
       try:
         args[3] = args[3].upper()
         order = api.submit_order(args[3],args[2],args[1],args[0].lower(),args[4],stop_price=args[5])
-        text = f'Stop order of | {args[1]} {args[2]} {args[3]} at stop price {args[5]} | submitted.  Order id = {order.id}.'
+        text = f'Stop order of | {args[1]} {args[2]} {args[3]} {args[4]} at stop price {args[5]} | submitted.  Order id = {order.id}.'
         response = requests.post(url="https://slack.com/api/chat.postMessage",data={
           "token": SLACK_TOKEN,
           "channel": request.form.get("channel_name"),
@@ -172,7 +172,7 @@ def order_handler():
       try:
         args[3] = args[3].upper()
         order = api.submit_order(args[3],args[2],args[1],args[0].lower(),args[4],limit_price=args[5],stop_price=args[6])
-        text = f'Stop-Limit order of | {args[1]} {args[2]} {args[3]} at stop price {args[6]} and limit price {args[5]} | submitted.  Order id = {order.id}.'
+        text = f'Stop-Limit order of | {args[1]} {args[2]} {args[3]} {args[4]} at stop price {args[6]} and limit price {args[5]} | submitted.  Order id = {order.id}.'
         response = requests.post(url="https://slack.com/api/chat.postMessage",data={
           "token": SLACK_TOKEN,
           "channel": request.form.get("channel_name"),
@@ -206,7 +206,7 @@ def list_handler():
       orders = api.list_orders(status="open")
       if(len(orders) == 0):
         return "No orders."
-      orders = map(lambda x: (f'Symbol: {x.symbol}, Qty: {x.qty}, Side: {x.side}, Type: {x.type}, Amount filled: {x.filled_qty}{(f", Stop Price = {x.stop_price}","")[x.stop_price == None]}{(f", Limit Price = {x.limit_price}","")[x.limit_price == None]}'),orders)
+      orders = map(lambda x: (f'Symbol: {x.symbol}, Qty: {x.qty}, Side: {x.side}, Type: {x.type}, Time in Force: {x.time_in_force}, Amount Filled: {x.filled_qty}{(f", Stop Price = {x.stop_price}","")[x.stop_price == None]}{(f", Limit Price = {x.limit_price}","")[x.limit_price == None]}'),orders)
       return "Listing orders...\n" + '\n'.join(orders)
     except Exception as e:
       response = requests.post(url=request.form.get("response_url"), data=json.dumps({"text": f"ERROR: {str(e)}"}), headers={"Content-type": "application/json"})
@@ -236,8 +236,8 @@ def clear_handler():
         positions = api.list_positions()
         positions = map(lambda x: [x.symbol,x.qty,x.side],positions)
         for position in positions:
-          api.submit_order(position[0],abs(int(position[1])),"sell" if position[2] == "long" else "buy","market","day")
-        text = "Clearing orders"
+          api.submit_order(position[0],abs(int(position[1])),("buy","sell")[position[2] == "long"],"market","day")
+        text = "Position clearing orders sent."
         response = requests.post(url="https://slack.com/api/chat.postMessage",data={
           "token": SLACK_TOKEN,
           "channel": request.form.get("channel_name"),
@@ -254,7 +254,7 @@ def clear_handler():
         orders = map(lambda x: x.id,orders)
         for order in orders:
           api.cancel_order(order)
-        text = "Orders cleared."
+        text = "Order cancels sent."
         response = requests.post(url="https://slack.com/api/chat.postMessage",data={
           "token": SLACK_TOKEN,
           "channel": request.form.get("channel_name"),
