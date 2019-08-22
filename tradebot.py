@@ -5,7 +5,7 @@ import multiprocessing
 import asyncio
 import json
 
-# Note: Slack commands automatically provide a whitespace for ensuing arguments.  Checks
+#   Note: Slack commands automatically provide a whitespace for ensuing arguments.  Checks
 #   that look like: len(args) == 1 and args[0].strip() == "" are checking if the user input 0 args,
 #   which would be received as 1 string argument containing " ".
 
@@ -249,6 +249,8 @@ def order_handler():
 
 # Lists certain things.  Must contain 1 argument: orders, positions, or
 # streams.
+
+
 @app.route("/list", methods=["POST"])
 def list_handler():
     args = request.form.get("text").split(" ")
@@ -271,7 +273,9 @@ def list_handler():
             orders = api.list_orders(status="open")
             if(len(orders) == 0):
                 return "No orders."
-            orders = map(lambda x: (f'Symbol: {x.symbol}, Qty: {x.qty}, Side: {x.side}, Type: {x.type}, Time in Force: {x.time_in_force}, Amount Filled: {x.filled_qty}{(f", Stop Price = {x.stop_price}","")[x.stop_price == None]}{(f", Limit Price = {x.limit_price}","")[x.limit_price == None]}'),orders)
+            orders = map(
+                lambda x: (f'Symbol: {x.symbol}, Qty: {x.qty}, Side: {x.side}, Type: {x.type}, Time in Force: {x.time_in_force}, Amount Filled: {x.filled_qty}{(f", Stop Price = {x.stop_price}","")[x.stop_price == None]}{(f", Limit Price = {x.limit_price}","")[x.limit_price == None]}, Order id = {x.id}'),
+                orders)
             return "Listing orders...\n" + '\n'.join(orders)
         except Exception as e:
             response = requests.post(url=request.form.get("response_url"), data=json.dumps(
@@ -341,8 +345,38 @@ def clear_handler():
     else:
         return BAD_ARGS
 
-# Gets basic account info.  Takes no arguments.
+# Cancels order by id.  Must take one argument: order_id
 
+
+@app.route("/cancel_order",methods=["POST"])
+def cancel_order_handler():
+    args = request.form.get("text").split(" ")
+    if(len(args) != 1):
+        return WRONG_NUM_ARGS
+    try:
+        api.cancel_order(args[0])
+        text = f'Order canceled.  Order id = {args[0]}'
+        return text
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+
+# Cancels most recent order.  Takes no arguments.
+
+
+@app.route("/cancel_recent_order",methods=["POST"])
+def cancel_recent_order_handler():
+    args = request.form.get("text").split(" ")
+    if(len(args) != 0 and not (len(args) == 1 and args[0].strip() == "")):
+        return WRONG_NUM_ARGS
+    try:
+        orders = api.list_orders(status="open",limit=1)
+        api.cancel_order(orders[0].id)
+        text = f'Most recent order cancelled.  Order id = {orders[0].id}'
+        return text
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+
+# Gets basic account info.  Takes no arguments.
 
 @app.route("/account_info", methods=["POST"])
 def account_info_handler():
@@ -357,7 +391,7 @@ def account_info_handler():
         return f"ERROR: {str(e)}"
 
 # Gets Polygon price specified stock symbols.  Must include one or more
-# arguments representing stock symbols. Must have live account to access
+# arguments representing stock symbols. Must have live account to access.
 
 
 @app.route("/get_price_polygon", methods=["POST"])
@@ -416,16 +450,17 @@ def help_tradebot_handler():
         return WRONG_NUM_ARGS
     try:
         text = "Commands, arguments, and descriptions: \n\
-      */order*: Execute order of specified type, limit/stop price as needed, <type> <side> <qty> <symbol> <time_in_force> <(optional) limit_price> <(optional) stop_price> \n\
-      */list*: Lists things, <'positions'/'orders'/'streams'> \n\
-      */clear*: Clears things, <'positions'/'orders'> \n\
-      */set_api_keys*: Sets the API keys, must specify 'paper' or 'live' as 3rd argument, <KEY_ID> <SECRET_KEY> <'paper'/'live'> \n\
-      */subscribe_streaming*: Subscribe to streaming channels, <[channels]> \n\
-      */unsubscribe_streaming*: Unsubscribe from streaming channels, <[channels]> \n\
-      */account_info*: Gets basic account info, no args \n\
-      */get_price*: Gets the price(s) of the given symbol(s), <[symbol(s)]> \n\
-      */get_price_polygon*: Polygon pricing data of given symbol(s), live accounts only, <[symbols]> \n\
-      */help_tradebot*: Provides a descripion of each command, no args"
+            */order*: Executes order of specified type, limit/stop price as needed, <type> <side> <qty> <symbol> <time_in_force> <(optional) limit_price> <(optional) stop_price> \n\
+            */list*: Lists things, <'positions'/'orders'/'streams'> \n\
+            */clear*: Clears things, <'positions'/'orders'> \n\
+            */subscribe_streaming*: Subscribe to streaming channels, <[channels]> \n\
+            */unsubscribe_streaming*: Unsubscribe from streaming channels, <[channels]> \n\
+            */account_info*: Gets basic account info, no args \n\
+            */get_price*: Gets the price(s) of the given symbol(s), <[symbol(s)]> \n\
+            */get_price_polygon*: Polygon pricing data of given symbol(s), live accounts only, <[symbols]> \n\
+            */help_tradebot*: Provides a descripion of each command, no args \n\
+            */cancel_order*: Cancels order by order id, <order_id> \n\
+            */cancel_recent_order*: Cancels most recent order, *no_args*"
         return text
     except Exception as e:
         return f'ERROR: {str(e)}'
