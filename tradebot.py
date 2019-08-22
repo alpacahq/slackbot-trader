@@ -9,7 +9,7 @@ import json
 #   that look like: len(args) == 1 and args[0].strip() == "" are checking if the user input 0 args,
 #   which would be received as 1 string argument containing " ".
 
-# Constants used throughout the script (names are self-explanatory)
+# Constants used throughout the script (names are self-explanatory). Must hard code SLACK TOKEN, KEY_ID, SECRET_KEY, channel
 WRONG_NUM_ARGS = "ERROR: Incorrect amount of args.  Action did not complete."
 BAD_ARGS = "ERROR: Request error.  Action did not complete."
 SLACK_TOKEN = "SLACK_TOKEN_HERE"
@@ -41,8 +41,6 @@ streams = {
 
 # Subscribe to streaming channel(s).  Must contain one or more arguments
 # representing streams you want to connect to.
-
-
 @app.route("/subscribe_streaming", methods=["POST"])
 def stream_data_handler():
     args = request.form.get("text").split(" ")
@@ -74,8 +72,6 @@ def stream_data_handler():
 
 # Unsubsribe to streaming channel(s).  Must contain one or more arguments
 # representing streams you want to disconnect to.
-
-
 @app.route("/unsubscribe_streaming", methods=["POST"])
 def unsubscribe_handler():
     args = request.form.get("text").split(" ")
@@ -105,8 +101,6 @@ def unsubscribe_handler():
         return f'ERROR: {str(e)}'
 
 # Stream listeners
-
-
 @conn.on(r'trade_updates')
 async def trade_updates_handler(conn, chan, data):
     if(data.event == "new"):
@@ -134,8 +128,6 @@ async def account_updates_handler(conn, chan, data):
     return ""
 
 # Helper function to listen to a stream
-
-
 def runThread(stream):
     conn.run([stream])
 
@@ -144,8 +136,6 @@ def runThread(stream):
 # Execute an order.  Must contain 5, 6, or 7 arguments: type, symbol,
 # quantity, side, time in force, limit price (optional), and stop price
 # (optional).
-
-
 @app.route("/order", methods=["POST"])
 def order_handler():
     args = request.form.get("text").split(" ")
@@ -249,8 +239,6 @@ def order_handler():
 
 # Lists certain things.  Must contain 1 argument: orders, positions, or
 # streams.
-
-
 @app.route("/list", methods=["POST"])
 def list_handler():
     args = request.form.get("text").split(" ")
@@ -296,8 +284,6 @@ def list_handler():
         return BAD_ARGS
 
 # Clears positions or orders.  Must contain 1 argument: positions or orders
-
-
 @app.route("/clear", methods=["POST"])
 def clear_handler():
     args = request.form.get("text").split(" ")
@@ -346,8 +332,6 @@ def clear_handler():
         return BAD_ARGS
 
 # Cancels order by id.  Must take one argument: order_id
-
-
 @app.route("/cancel_order",methods=["POST"])
 def cancel_order_handler():
     args = request.form.get("text").split(" ")
@@ -361,8 +345,6 @@ def cancel_order_handler():
         return f"ERROR: {str(e)}"
 
 # Cancels most recent order.  Takes no arguments.
-
-
 @app.route("/cancel_recent_order",methods=["POST"])
 def cancel_recent_order_handler():
     args = request.form.get("text").split(" ")
@@ -370,6 +352,8 @@ def cancel_recent_order_handler():
         return WRONG_NUM_ARGS
     try:
         orders = api.list_orders(status="open",limit=1)
+        if(len(orders) == 0):
+            return "No orders to cancel."
         api.cancel_order(orders[0].id)
         text = f'Most recent order cancelled.  Order id = {orders[0].id}'
         return text
@@ -377,7 +361,6 @@ def cancel_recent_order_handler():
         return f"ERROR: {str(e)}"
 
 # Gets basic account info.  Takes no arguments.
-
 @app.route("/account_info", methods=["POST"])
 def account_info_handler():
     args = request.form.get("text").split(" ")
@@ -392,8 +375,6 @@ def account_info_handler():
 
 # Gets Polygon price specified stock symbols.  Must include one or more
 # arguments representing stock symbols. Must have live account to access.
-
-
 @app.route("/get_price_polygon", methods=["POST"])
 def get_price_polygon_handler():
     args = request.form.get("text").split(" ")
@@ -417,8 +398,6 @@ def get_price_polygon_handler():
 
 # Gets price specified stock symbols.  Must include one or more arguments
 # representing stock symbols.
-
-
 @app.route("/get_price", methods=["POST"])
 def get_price_handler():
     args = request.form.get("text").split(" ")
@@ -441,8 +420,6 @@ def get_price_handler():
     return ""
 
 # Provides a verbose description of each tradebot command
-
-
 @app.route("/help_tradebot", methods=["POST"])
 def help_tradebot_handler():
     args = request.form.get("text").split(" ")
@@ -464,7 +441,6 @@ def help_tradebot_handler():
         return text
     except Exception as e:
         return f'ERROR: {str(e)}'
-
 
 # Run on local port 3000
 if __name__ == "__main__":
