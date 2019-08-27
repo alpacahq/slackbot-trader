@@ -41,9 +41,8 @@ def reply_private(request, text):
 
 @app.route("/order", methods=["POST"])
 def order_handler():
-    '''Execute an order.  Must contain 5, 6, or 7 arguments: type, symbol,
-       quantity, side, time in force, limit price (optional), and stop price
-       (optional).
+    '''Execute an order.  Must contain 5 arguments: type, symbol,
+       quantity, side, time in force
     '''
     args = request.form.get("text").split(" ")
     if len(args) == 0:
@@ -81,18 +80,6 @@ def order_handler():
             reply_private(request, BAD_ARGS)
     asyncio.run(sub_order(api, request, args))
     return ""
-
-
-@app.route("/help_tradebot", methods=["POST"])
-def help_tradebot_handler():
-    '''Provides a verbose description of each tradebot command'''
-    try:
-        text = """Commands, arguments, and descriptions:
-*/order*: Executes order of specified type, <type> <side> <qty> <symbol> <time_in_force>
-*/help_tradebot*: Provides a descripion of each command, no args"""  # noqa: E501
-        return text
-    except Exception as e:
-        return f'ERROR: {str(e)}'
 
 
 # Run on local port 3000
