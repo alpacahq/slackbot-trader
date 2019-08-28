@@ -1,12 +1,10 @@
-# Slackbot Trader Example, #01
+# Slackbot Trader Example, #02
 
-This is the first part of a tutorial on how I built Slackbot Trader for [Alpaca API](https://docs.alpaca.markets).
+This is the second part of a tutorial on how I built Slackbot Trader for [Alpaca API](https://docs.alpaca.markets).
 
 ## Spec
 
-- Written in Python
-- Handles a slash command `/order`
-- Submits a market order for my account with specified symbol and quantity
+- Adds additional features to `/order`, such as `/list` and `/clear`
 
 ## How to run it
 

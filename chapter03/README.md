@@ -1,12 +1,10 @@
-# Slackbot Trader Example, #01
+# Slackbot Trader Example, #03
 
-This is the first part of a tutorial on how I built Slackbot Trader for [Alpaca API](https://docs.alpaca.markets).
+This is the third and final part of a tutorial on how I built Slackbot Trader for [Alpaca API](https://docs.alpaca.markets).
 
 ## Spec
 
-- Written in Python
-- Handles a slash command `/order`
-- Submits a market order for my account with specified symbol and quantity
+- Adds streaming capabilities with new commands such as `/subscribe_streaming` and `/unsubscribe_streaming`
 
 ## How to run it
 
