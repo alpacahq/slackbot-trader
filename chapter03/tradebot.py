@@ -4,6 +4,7 @@ import requests
 import asyncio
 import json
 import os
+import multiprocessing
 
 
 # Constants used throughout the script (names are self-explanatory)
@@ -12,12 +13,14 @@ BAD_ARGS = "ERROR: Request error.  Action did not complete."
 KEY_ID = ""  # Your API Key ID
 SECRET_KEY = ""  # Your Secret Key
 SLACK_TOKEN = ""  # Slack OAuth Access Token
+CHANNEL = ""
 
 config = {
     "key_id": os.environ.get("KEY_ID", KEY_ID),
     "secret_key": os.environ.get("SECRET_KEY", SECRET_KEY),
     "base_url": os.environ.get("BASE_URL", "https://paper-api.alpaca.markets"),
     "slack_token": os.environ.get("SLACK_TOKEN", SLACK_TOKEN),
+    "channel": os.environ.get("CHANNEL", CHANNEL)
 }
 
 # Set up environment
@@ -78,7 +81,7 @@ def stream_data_handler():
             response = requests.post(
                 url="https://slack.com/api/chat.postMessage",
                 data={
-                    "token": SLACK_TOKEN,
+                    "token": config["slack_token"],
                     "channel": request.form.get("channel_name"),
                     "text": text})
             return ""
@@ -110,7 +113,7 @@ def unsubscribe_handler():
             response = requests.post(
                 url="https://slack.com/api/chat.postMessage",
                 data={
-                    "token": SLACK_TOKEN,
+                    "token": config["slack_token"],
                     "channel": request.form.get("channel_name"),
                     "text": text})
             return ""
@@ -127,12 +130,12 @@ async def trade_updates_handler(conn, chan, data):
     if(data.event == "new"):
         return ""
     elif(data.event == "fill" or data.event == "partial_fill"):
-        text = f'Event: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} {data.order["time_in_force"]} | {data.event} at {data.price}'
+        text = f'*Event*: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} {data.order["time_in_force"]} | {data.event} at {data.price}'
     else:
-        text = f'Event: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} {data.order["time_in_force"]} {data.event}'
+        text = f'*Event*: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} {data.order["time_in_force"]} {data.event}'
     response = requests.post(url="https://slack.com/api/chat.postMessage", data={
-        "token": SLACK_TOKEN,
-        "channel": CHANNEL,
+        "token": config["slack_token"],
+        "channel": config["channel"],
         "text": text
     })
     return ""
@@ -143,8 +146,8 @@ async def account_updates_handler(conn, chan, data):
     response = requests.post(
         url="https://slack.com/api/chat.postMessage",
         data={
-            "token": SLACK_TOKEN,
-            "channel": CHANNEL,
+            "token": config["slack_token"],
+            "channel": config["channel"],
             "text": text})
     return ""
 
@@ -183,7 +186,7 @@ def order_handler():
                 response = requests.post(
                     url="https://slack.com/api/chat.postMessage",
                     data={
-                        "token": SLACK_TOKEN,
+                        "token": config["slack_token"],
                         "channel": request.form.get("channel_name"),
                         "text": text})
             except Exception as e:
@@ -205,7 +208,7 @@ def order_handler():
                 response = requests.post(
                     url="https://slack.com/api/chat.postMessage",
                     data={
-                        "token": SLACK_TOKEN,
+                        "token": config["slack_token"],
                         "channel": request.form.get("channel_name"),
                         "text": text})
             except Exception as e:
@@ -226,7 +229,7 @@ def order_handler():
                 response = requests.post(
                     url="https://slack.com/api/chat.postMessage",
                     data={
-                        "token": SLACK_TOKEN,
+                        "token": config["slack_token"],
                         "channel": request.form.get("channel_name"),
                         "text": text})
             except Exception as e:
@@ -249,7 +252,7 @@ def order_handler():
                 response = requests.post(
                     url="https://slack.com/api/chat.postMessage",
                     data={
-                        "token": SLACK_TOKEN,
+                        "token": config["slack_token"],
                         "channel": request.form.get("channel_name"),
                         "text": text})
             except Exception as e:
@@ -324,7 +327,7 @@ def clear_handler():
                 response = requests.post(
                     url="https://slack.com/api/chat.postMessage",
                     data={
-                        "token": SLACK_TOKEN,
+                        "token": config["slack_token"],
                         "channel": request.form.get("channel_name"),
                         "text": text})
             except Exception as e:
@@ -342,7 +345,7 @@ def clear_handler():
                 response = requests.post(
                     url="https://slack.com/api/chat.postMessage",
                     data={
-                        "token": SLACK_TOKEN,
+                        "token": config["slack_token"],
                         "channel": request.form.get("channel_name"),
                         "text": text})
             except Exception as e:
