@@ -43,7 +43,6 @@ app = Flask(__name__)
 # Initialize the dictionary of streams that we are listening to; None
 # denotes not listening
 streams = {
-    "account_updates": None,
     "trade_updates": None,
 }
 
@@ -64,19 +63,19 @@ def reply_private(request, text):
 @app.route("/subscribe_streaming", methods=["POST"])
 def stream_data_handler():
     args = request.form.get("text").split(" ")
-    if(len(args) == 1 and args[0].strip() == ""):
+    if len(args) == 1 and args[0].strip() == "":
         return BAD_ARGS
     try:
         connected = 0
         for stream in args:
             # If the specified stream exists in the dictionary and it hasn't
             # been initialized, subscribe and listen to it.
-            if(streams[stream] is None):
+            if streams[stream] is None:
                 streams[stream] = multiprocessing.Process(
                     target=runThread, args=(stream,))
                 streams[stream].start()
                 connected += 1
-        if(len(args) == connected):
+        if len(args) == connected:
             text = f"Subscription{('','s')[connected > 1]} to {(' ').join(args)} sent."
             response = requests.post(
                 url="https://slack.com/api/chat.postMessage",
@@ -97,18 +96,18 @@ def stream_data_handler():
 @app.route("/unsubscribe_streaming", methods=["POST"])
 def unsubscribe_handler():
     args = request.form.get("text").split(" ")
-    if(len(args) == 1 and args[0].strip() == ""):
+    if len(args) == 1 and args[0].strip() == "":
         return BAD_ARGS
     try:
         disconnected = 0
         for stream in args:
             # If the specified stream exists in the dictionary and it has been
             # initialized, stop listening.
-            if(streams[stream] is not None):
+            if streams[stream] is not None:
                 streams[stream].terminate()
                 streams[stream] = None
                 disconnected += 1
-        if(len(args) == disconnected):
+        if len(args) == disconnected:
             text = f"Unsubscription{('', 's')[disconnected > 1]} to {(' ').join(args)} sent."
             response = requests.post(
                 url="https://slack.com/api/chat.postMessage",
@@ -127,9 +126,9 @@ def unsubscribe_handler():
 
 @conn.on(r'trade_updates')
 async def trade_updates_handler(conn, chan, data):
-    if(data.event == "new"):
+    if data.event == "new":
         return ""
-    elif(data.event == "fill" or data.event == "partial_fill"):
+    elif data.event == "fill" or data.event == "partial_fill":
         text = f'*Event*: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} {data.order["time_in_force"]} | {data.event} at {data.price}'
     else:
         text = f'*Event*: {data.event}, {data.order["type"]} order of | {data.order["side"]} {data.order["qty"]} {data.order["symbol"]} {data.order["time_in_force"]} {data.event}'
@@ -138,17 +137,6 @@ async def trade_updates_handler(conn, chan, data):
         "channel": config["channel"],
         "text": text
     })
-    return ""
-
-@conn.on(r'account_updates')
-async def account_updates_handler(conn, chan, data):
-    text = f'Account updated.  Account balance is currently: {data.cash} {data.currency}'
-    response = requests.post(
-        url="https://slack.com/api/chat.postMessage",
-        data={
-            "token": config["slack_token"],
-            "channel": config["channel"],
-            "text": text})
     return ""
 
 # Helper function to listen to a stream
@@ -165,12 +153,12 @@ def runThread(stream):
 @app.route("/order", methods=["POST"])
 def order_handler():
     args = request.form.get("text").split(" ")
-    if(len(args) == 0):
+    if len(args) == 0 :
         return WRONG_NUM_ARGS
 
     async def sub_order(api, request, args):
-        if(args[0].lower() == "market"):
-            if(len(args) != 5):
+        if args[0].lower() == "market":
+            if len(args) != 5:
                 reply_private(request, WRONG_NUM_ARGS)
                 return
             try:
@@ -191,8 +179,8 @@ def order_handler():
                         "text": text})
             except Exception as e:
                 reply_private(request, f"ERROR: {str(e)}")
-        elif(args[0].lower() == "limit"):
-            if(len(args) != 6):
+        elif args[0].lower() == "limit":
+            if len(args) != 6:
                 reply_private(request, WRONG_NUM_ARGS)
                 return
             try:
@@ -213,8 +201,8 @@ def order_handler():
                         "text": text})
             except Exception as e:
                 reply_private(request, f"ERROR: {str(e)}")
-        elif(args[0].lower() == "stop"):
-            if(len(args) != 6):
+        elif args[0].lower() == "stop":
+            if len(args) != 6:
                 return WRONG_NUM_ARGS
             try:
                 args[3] = args[3].upper()
@@ -234,8 +222,8 @@ def order_handler():
                         "text": text})
             except Exception as e:
                 reply_private(request, f"ERROR: {str(e)}")
-        elif(args[0].lower() == "stop_limit"):
-            if(len(args) != 7):
+        elif args[0].lower() == "stop_limit":
+            if len(args) != 7:
                 reply_private(request, WRONG_NUM_ARGS)
                 return
             try:
@@ -269,12 +257,12 @@ def order_handler():
 @app.route("/list", methods=["POST"])
 def list_handler():
     args = request.form.get("text").split(" ")
-    if(len(args) == 0):
+    if len(args) == 0:
         return WRONG_NUM_ARGS
-    if(args[0] == "positions"):
+    if args[0] == "positions":
         try:
             positions = api.list_positions()
-            if(len(positions) == 0):
+            if len(positions) == 0:
                 return "No positions."
             positions = map(
                 lambda x: (f'Symbol: {x.symbol}, Qty: {x.qty}, Side: {x.side}, Entry price: {x.avg_entry_price}, Current price: {x.current_price}'),
@@ -282,10 +270,10 @@ def list_handler():
             return "Listing positions...\n" + '\n'.join(positions)
         except Exception as e:
                 reply_private(request, f"ERROR: {str(e)}")
-    elif(args[0] == "orders"):
+    elif args[0] == "orders" :
         try:
             orders = api.list_orders(status="open")
-            if(len(orders) == 0):
+            if len(orders) == 0:
                 return "No orders."
             orders = map(
                 lambda x: (f'Symbol: {x.symbol}, Qty: {x.qty}, Side: {x.side}, Type: {x.type}, Time in Force: {x.time_in_force}, Amount Filled: {x.filled_qty}{(f", Stop Price = {x.stop_price}","")[x.stop_price == None]}{(f", Limit Price = {x.limit_price}","")[x.limit_price == None]}, Order id = {x.id}'),
@@ -293,13 +281,13 @@ def list_handler():
             return "Listing orders...\n" + '\n'.join(orders)
         except Exception as e:
             reply_private(request, f"ERROR: {str(e)}")
-    elif(args[0] == "streams"):
+    elif args[0] == "streams":
         text = "Listing active streams...\n"
         try:
             for stream in streams:
-                if(streams[stream] is not None):
+                if streams[stream] is not None:
                     text += (stream + "\n")
-            if(text == "Listing active streams...\n"):
+            if text == "Listing active streams...\n":
                 return "No active streams."
             return text
         except Exception as e:
@@ -313,9 +301,9 @@ def list_handler():
 @app.route("/clear", methods=["POST"])
 def clear_handler():
     args = request.form.get("text").split(" ")
-    if(len(args) == 0):
+    if len(args) == 0:
         return WRONG_NUM_ARGS
-    if(args[0] == "positions"):
+    if args[0] == "positions":
         async def sub_clear_positions(api, request):
             try:
                 positions = api.list_positions()
@@ -334,7 +322,7 @@ def clear_handler():
                 reply_private(request, f"ERROR: {str(e)}")
         asyncio.run(sub_clear_positions(api, request))
         return ""
-    elif(args[0] == "orders"):
+    elif args[0] == "orders":
         async def sub_clear_orders(api, request):
             try:
                 orders = api.list_orders()
@@ -361,7 +349,7 @@ def clear_handler():
 @app.route("/cancel_order", methods=["POST"])
 def cancel_order_handler():
     args = request.form.get("text").split(" ")
-    if(len(args) != 1):
+    if len(args) != 1:
         return WRONG_NUM_ARGS
     try:
         api.cancel_order(args[0])
@@ -376,11 +364,11 @@ def cancel_order_handler():
 @app.route("/cancel_recent_order", methods=["POST"])
 def cancel_recent_order_handler():
     args = request.form.get("text").split(" ")
-    if(len(args) != 0 and not (len(args) == 1 and args[0].strip() == "")):
+    if len(args) != 0 and not (len(args) == 1 and args[0].strip() == ""):
         return WRONG_NUM_ARGS
     try:
         orders = api.list_orders(status="open", limit=1)
-        if(len(orders) == 0):
+        if len(orders) == 0:
             return "No orders to cancel."
         api.cancel_order(orders[0].id)
         text = f'Most recent order cancelled.  Order id = {orders[0].id}'
@@ -394,7 +382,7 @@ def cancel_recent_order_handler():
 @app.route("/account_info", methods=["POST"])
 def account_info_handler():
     args = request.form.get("text").split(" ")
-    if(len(args) != 0 and not (len(args) == 1 and args[0].strip() == "")):
+    if len(args) != 0 and not (len(args) == 1 and args[0].strip() == ""):
         return WRONG_NUM_ARGS
     try:
         account = api.get_account()
@@ -410,7 +398,7 @@ def account_info_handler():
 @app.route("/get_price_polygon", methods=["POST"])
 def get_price_polygon_handler():
     args = request.form.get("text").split(" ")
-    if(len(args) == 1 and args[0].strip() == ""):
+    if len(args) == 1 and args[0].strip() == "":
         return WRONG_NUM_ARGS
 
     async def sub_get_price_polygon(api, request, args):
@@ -433,7 +421,7 @@ def get_price_polygon_handler():
 @app.route("/get_price", methods=["POST"])
 def get_price_handler():
     args = request.form.get("text").split(" ")
-    if(len(args) == 1 and args[0].strip() == ""):
+    if len(args) == 1 and args[0].strip() == "":
         return WRONG_NUM_ARGS
 
     async def sub_get_price(api, request, args):
@@ -455,7 +443,7 @@ def get_price_handler():
 @app.route("/help_tradebot", methods=["POST"])
 def help_tradebot_handler():
     args = request.form.get("text").split(" ")
-    if(len(args) != 0 and not (len(args) == 1 and args[0].strip() == "")):
+    if len(args) != 0 and not (len(args) == 1 and args[0].strip() == ""):
         return WRONG_NUM_ARGS
     try:
         text = "Commands, arguments, and descriptions: \n\
